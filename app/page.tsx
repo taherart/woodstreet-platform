@@ -324,17 +324,17 @@ export default function HomePage() {
                                   <input
                                     type="number" placeholder="W (عرض)" value={dimensions.w}
                                     onChange={(e) => { e.stopPropagation(); setDimensions(prev => ({ ...prev, w: e.target.value })); }}
-                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/30 text-brown-dark placeholder:text-brown-muted/60 focus:outline-none focus:border-brown-primary"
+                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/40 text-brown-dark font-medium placeholder:text-brown-muted focus:outline-none focus:border-brown-primary focus:ring-1 focus:ring-brown-primary/20"
                                   />
                                   <input
                                     type="number" placeholder="H (ارتفاع)" value={dimensions.h}
                                     onChange={(e) => { e.stopPropagation(); setDimensions(prev => ({ ...prev, h: e.target.value })); }}
-                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/30 text-brown-dark placeholder:text-brown-muted/60 focus:outline-none focus:border-brown-primary"
+                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/40 text-brown-dark font-medium placeholder:text-brown-muted focus:outline-none focus:border-brown-primary focus:ring-1 focus:ring-brown-primary/20"
                                   />
                                   <input
                                     type="number" placeholder="D (عمق)" value={dimensions.d}
                                     onChange={(e) => { e.stopPropagation(); setDimensions(prev => ({ ...prev, d: e.target.value })); }}
-                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/30 text-brown-dark placeholder:text-brown-muted/60 focus:outline-none focus:border-brown-primary"
+                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/40 text-brown-dark font-medium placeholder:text-brown-muted focus:outline-none focus:border-brown-primary focus:ring-1 focus:ring-brown-primary/20"
                                   />
                                 </div>
                               </div>
