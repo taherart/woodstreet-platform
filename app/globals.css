@@ -37,7 +37,7 @@
 /* ── Base ── */
 @layer base {
   body {
-    background: linear-gradient(180deg, #FBF9F7 0%, #F5F0EB 40%, #EDE3D8 100%);
+    background: linear-gradient(180deg, #E8DDD4 0%, #D4C4B7 30%, #C4B5A3 100%);
     min-height: 100vh;
     color: #3C2415;
     font-family: var(--font-sans-arabic);

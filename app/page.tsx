@@ -402,7 +402,7 @@ export default function HomePage() {
         )}
 
         {/* LIBRARY */}
-        {library.length > 0 && (
+        {library.length > 0 ? (
           <section className="mt-16 animate-fade-in-up">
             <div className="mb-6"><h3 className="text-xl font-bold text-brown-dark">المكتبة</h3><p className="text-xs text-brown-muted mt-1">آخر {library.length} صورة تم إنتاجها</p></div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
@@ -413,6 +413,13 @@ export default function HomePage() {
                   <span className="absolute top-1.5 left-1.5 bg-white/80 backdrop-blur text-[10px] font-medium px-1.5 py-0.5 rounded text-brown-dark">{item.type === 'video' ? '🎥' : '🖼'}</span>
                 </a>
               ))}
+            </div>
+          </section>
+        ) : (
+          <section className="mt-16 animate-fade-in-up">
+            <div className="mb-6"><h3 className="text-xl font-bold text-brown-dark">المكتبة</h3><p className="text-xs text-brown-muted mt-1">آخر الصور المنتجة ستظهر هنا</p></div>
+            <div className="glass-card p-8 text-center">
+              <p className="text-brown-muted text-sm">لا توجد صور بعد. قم بتوليد أول صورة!</p>
             </div>
           </section>
         )}
