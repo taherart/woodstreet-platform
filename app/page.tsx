@@ -166,9 +166,8 @@ export default function HomePage() {
       <div className="ambient-bg" />
 
       {/* HEADER */}
-      <header className="sticky top-0 z-50 border-b border-brown-light/20">
-        <div className="glass-card !rounded-none !border-0 !border-b border-brown-light/20">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-50 border-b border-brown-light/20 bg-white/95 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brown-primary to-brown-dark flex items-center justify-center shadow-lg shadow-brown-primary/25">
                 <span className="text-white font-bold text-sm tracking-tight">W</span>
@@ -183,7 +182,6 @@ export default function HomePage() {
               <span className="font-bold text-brown-dark text-sm tabular-nums">{credits !== null ? credits.toLocaleString('ar-EG') : '—'}</span>
               <span className="text-xs text-brown-muted hidden sm:inline">كريدت</span>
             </div>
-          </div>
         </div>
       </header>
 
