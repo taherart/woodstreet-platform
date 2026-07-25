@@ -25,7 +25,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'صورة المنتج على خلفية بيضاء (زاوية 3/4)',
     labelEn: 'White Background — 3/4 Angle',
     type: 'image',
-    cost: 75,
+    cost: 1,
     category: 'product',
   },
   {
@@ -34,7 +34,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'صورة المنتج على خلفية بيضاء (أمامي)',
     labelEn: 'White Background — Front View',
     type: 'image',
-    cost: 75,
+    cost: 1,
     category: 'product',
   },
   {
@@ -43,7 +43,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'صورة المنتج في منزل مصري مودرن',
     labelEn: 'Modern Egyptian Home',
     type: 'image',
-    cost: 75,
+    cost: 1,
     category: 'lifestyle',
   },
   {
@@ -52,7 +52,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'صورة المنتج في interior منزل مصري',
     labelEn: 'Egyptian Home Interior',
     type: 'image',
-    cost: 75,
+    cost: 1,
     category: 'lifestyle',
   },
   {
@@ -61,7 +61,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'صورة المنتج في منزل واقعي',
     labelEn: 'Lived-in Egyptian Home',
     type: 'image',
-    cost: 75,
+    cost: 1,
     category: 'lifestyle',
   },
   {
@@ -70,7 +70,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'فيديو دوران 180 درجة',
     labelEn: '180° Orbital Video',
     type: 'video',
-    cost: 200,
+    cost: 7,
     category: 'video',
     durations: [5, 10],
     aspectRatios: ['1:1', '16:9', '9:16'],
@@ -81,7 +81,7 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     label: 'فيديو عرض سينمائي',
     labelEn: 'Cinematic Showcase',
     type: 'video',
-    cost: 150,
+    cost: 7,
     category: 'video',
     durations: [5, 10],
     aspectRatios: ['1:1', '16:9', '9:16'],
@@ -96,7 +96,7 @@ export function getTotalCost(selectedIds: string[], videoParams?: Record<string,
     .filter(o => selectedIds.includes(o.id))
     .reduce((sum, o) => {
       if (o.type === 'video' && videoParams?.[o.id]) {
-        return sum + (videoParams[o.id].duration >= 10 ? 200 : 150);
+        return sum + (videoParams[o.id].duration >= 10 ? 7 : 5);
       }
       return sum + o.cost;
     }, 0);
