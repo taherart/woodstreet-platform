@@ -90,9 +90,16 @@ export default function HomePage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['product', 'lifestyle', 'video']));
   const [dragOver, setDragOver] = useState(false);
+  const [library, setLibrary] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { fetchCredits(); fetchLogs(); }, []);
+  useEffect(() => { fetchCredits(); fetchLogs(); fetchLibrary(); }, []);
+
+  const fetchLibrary = async () => {
+    const res = await fetch('/api/library');
+    const data = await res.json();
+    setLibrary(data.library || []);
+  };
 
   const fetchCredits = async () => {
     const res = await fetch('/api/credits');
@@ -184,6 +191,7 @@ export default function HomePage() {
           setResults(statusData.outputs || []);
           fetchCredits();
           fetchLogs();
+          fetchLibrary();
         }
       }, 3000);
     } catch (e) {
@@ -765,7 +773,8 @@ export default function HomePage() {
                         {r.download_url && (
                           <a
                             href={r.download_url}
-                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur text-white text-xs px-4 py-2 rounded-full border border-white/20 hover:bg-white/30 transition-all w-fit"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -788,7 +797,8 @@ export default function HomePage() {
                     {r.status === 'completed' && r.download_url && (
                       <a
                         href={r.download_url}
-                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="btn-outline text-xs px-3 py-1.5 rounded-full inline-flex items-center gap-1"
                       >
                         <IconDownload />
@@ -797,6 +807,45 @@ export default function HomePage() {
                     )}
                   </div>
                 </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ──────── LIBRARY ──────── */}
+        {library.length > 0 && (
+          <section className="mt-16 animate-fade-in-up">
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-brown-dark">المكتبة</h3>
+              <p className="text-xs text-brown-muted mt-1">آخر {library.length} صورة تم إنتاجها</p>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {library.map((item: any, i: number) => (
+                <a
+                  key={i}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square rounded-xl overflow-hidden bg-cream/50 border border-brown-light/20 hover:border-brown-primary/40 hover:shadow-lg hover:shadow-brown-primary/10 transition-all duration-300"
+                  title={item.label}
+                >
+                  <img
+                    src={item.url}
+                    alt={item.label}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  {/* Overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-brown-dark/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                    <p className="text-white text-[10px] leading-tight font-medium truncate w-full">
+                      {item.label}
+                    </p>
+                  </div>
+                  {/* Type badge */}
+                  <span className="absolute top-1.5 left-1.5 bg-white/80 backdrop-blur text-[10px] font-medium px-1.5 py-0.5 rounded text-brown-dark">
+                    {item.type === 'video' ? '🎥' : '🖼'}
+                  </span>
+                </a>
               ))}
             </div>
           </section>
