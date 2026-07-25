@@ -132,6 +132,31 @@ async function uploadImageFile(filePath: string): Promise<string> {
   return creationId;
 }
 
+/**
+ * Clean up the space: reset to perfect star topology (input → 7 generators),
+ * remove any stray creation nodes from previous runs.
+ */
+async function cleanSpace(c: Client): Promise<void> {
+  console.log('[Magnific] Cleaning space...');
+  const cleanQuery = `Clean up this space:
+1. DELETE any creation nodes that are NOT the input node and NOT the output creation nodes (0e658e46, 1b6af891, 2827cf46, 6d059735, 6f5cbc72, afa0c655, e52a1fe7)
+2. Remove ALL existing connections
+3. Connect the input node (cc6739fc) to all 7 generators: 3aca2fcb, f3514c2b, a03ceff9, 08738244, d53a1432, bbcae213, 1b98ba4e
+Result must be exactly: input → 7 generators, no other nodes or connections`;
+
+  const result = await c.callTool({
+    name: 'spaces_edit',
+    arguments: { spaceId: SPACE_ID, query: cleanQuery },
+  });
+  
+  const text = extractTextContent(result);
+  const opId = extractId(text, 'operationId') || extractId(text);
+  if (opId) {
+    await pollEditComplete(c, opId);
+    console.log('[Magnific] Space cleaned');
+  }
+}
+
 export async function runSpace(filePath: string, selectedOptionIds: string[], videoParams?: Record<string, VideoParams>): Promise<string[]> {
   const c = await getClient();
   const selectedNodeIds = getNodeIds(selectedOptionIds);
@@ -139,6 +164,9 @@ export async function runSpace(filePath: string, selectedOptionIds: string[], vi
   console.log('[Magnific] Selected option IDs:', selectedOptionIds);
   console.log('[Magnific] Resolved node IDs:', selectedNodeIds);
   if (videoParams) console.log('[Magnific] Video params:', JSON.stringify(videoParams));
+
+  // 0. Clean space: reset to star topology, remove stray nodes
+  await cleanSpace(c);
 
   // 1. Upload the image
   console.log('[Magnific] Uploading file:', filePath);
