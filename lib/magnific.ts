@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { readFileSync, existsSync, writeFileSync, readFile } from 'fs';
 import { join } from 'path';
-import { SPACE_ID } from './woodstreet-nodes';
+import { SPACE_ID, INPUT_NODE_ID } from './woodstreet-nodes';
 
 const MAGNIFIC_MCP_URL = 'https://mcp.magnific.com';
 const TOKENS_PATH = join(process.env.HOME || '/root', '.hermes', 'mcp-tokens', 'magnific.json');
@@ -147,18 +147,43 @@ export async function runSpace(filePath: string, selectedNodeIds: string[]): Pro
   console.log('[Magnific] Creation ID:', creationId);
 
   // Add creation to Space
-  await c.callTool({
+  const addResult = await c.callTool({
     name: 'spaces_add_creations',
     arguments: { spaceId: SPACE_ID, creationIdentifiers: [creationId] },
   });
-  console.log('[Magnific] Added to Space');
+  
+  const addText = extractTextContent(addResult);
+  console.log('[Magnific] Added to Space:', addText.slice(0, 300));
+
+  // Connect the new image node to the input node via spaces_edit
+  const inputNodeId = INPUT_NODE_ID;
+  console.log('[Magnific] Connecting new image to input node:', inputNodeId);
+
+  const editResult = await c.callTool({
+    name: 'spaces_edit',
+    arguments: {
+      spaceId: SPACE_ID,
+      query: 'connect this image as input source to the workflow input node — replace the old image with this new one',
+      anchorElementId: inputNodeId,
+      anchorDirection: 'right',
+    },
+  });
+
+  const editText = extractTextContent(editResult);
+  console.log('[Magnific] Edit result:', editText.slice(0, 300));
+
+  // Poll the edit to complete
+  const editOpId = extractId(editText, 'operationId') || extractId(editText);
+  if (editOpId) {
+    await pollEditComplete(c, editOpId);
+  }
 
   // Run workflow
   const runResult = await c.callTool({
     name: 'spaces_run',
     arguments: {
       spaceId: SPACE_ID,
-      startNodeId: 'cc6739fc-4f96-46a8-8db8-c730befb1c66',
+      startNodeId: inputNodeId,
       mode: 'downstream',
     },
   });
@@ -169,6 +194,25 @@ export async function runSpace(filePath: string, selectedNodeIds: string[]): Pro
 
   console.log('[Magnific] Workflow started:', runId);
   return runId;
+}
+
+async function pollEditComplete(c: Client, operationId: string): Promise<void> {
+  for (let i = 0; i < 30; i++) {
+    const result = await c.callTool({
+      name: 'spaces_edit_status',
+      arguments: { operationId, timeoutSeconds: 5 },
+    });
+    const text = extractTextContent(result);
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.allTerminal) {
+        console.log('[Magnific] Edit completed');
+        return;
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  console.log('[Magnific] Edit poll timeout — proceeding anyway');
 }
 
 export async function pollRunStatus(runId: string) {
