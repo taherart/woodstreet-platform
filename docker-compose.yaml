@@ -1,22 +1,55 @@
 services:
-  woodstreet:
-    build: .
-    container_name: woodstreet-platform
-    restart: unless-stopped
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
-    environment:
-      - NODE_ENV=production
-      - HOME=/root
-      - PORT=3000
-    expose:
-      - '3000'
-    volumes:
-      - woodstreet_data:/app/data
-      - woodstreet_uploads:/app/public/uploads
-      - /root/.hermes/mcp-tokens:/root/.hermes/mcp-tokens:ro
-
+    woodstreet:
+        build: .
+        container_name: woodstreet-l9mmykm5zaalgdc23vudvata-163541660014
+        restart: unless-stopped
+        dns:
+            - 1.1.1.1
+            - 8.8.8.8
+        environment:
+            NODE_ENV: production
+            HOME: /root
+            PORT: '3000'
+            HOSTNAME: '0.0.0.0'
+            COOLIFY_BRANCH: '"main"'
+            COOLIFY_RESOURCE_UUID: l9mmykm5zaalgdc23vudvata
+            COOLIFY_CONTAINER_NAME: woodstreet-l9mmykm5zaalgdc23vudvata-163541660014
+            SERVICE_NAME_WOODSTREET: woodstreet
+        expose:
+            - '3000'
+        volumes:
+            - 'l9mmykm5zaalgdc23vudvata_woodstreet-data:/app/data'
+            - 'l9mmykm5zaalgdc23vudvata_woodstreet-uploads:/app/public/uploads'
+            - '/root/.hermes/mcp-tokens:/root/.hermes/mcp-tokens:ro'
+        labels:
+            - coolify.managed=true
+            - coolify.version=4.1.2
+            - coolify.applicationId=8
+            - coolify.type=application
+            - coolify.name=woodstreet-l9mmykm5zaalgdc23vudvata-163541660014
+            - coolify.resourceName=woodstreet
+            - coolify.projectName=my-first-project
+            - coolify.serviceName=woodstreet
+            - coolify.environmentName=production
+            - coolify.pullRequestId=0
+            - "traefik.enable=true"
+            - "traefik.docker.network=host"
+            - "traefik.http.routers.woodstreet.rule=Host(`taherart.cloud`) && PathPrefix(`/woodstreet`)"
+            - "traefik.http.routers.woodstreet.entrypoints=http,https"
+            - "traefik.http.routers.woodstreet.tls.certResolver=letsencrypt"
+            - "traefik.http.routers.woodstreet.middlewares=woodstreet-strip"
+            - "traefik.http.middlewares.woodstreet-strip.stripprefix.prefixes=/woodstreet"
+            - "traefik.http.services.woodstreet.loadbalancer.server.port=3000"
+        network_mode: host
+        env_file:
+            - .env
+        image: 'l9mmykm5zaalgdc23vudvata_woodstreet:7278235ee7ccc8b15105c13dc8a43675520b7bc8'
 volumes:
-  woodstreet_data:
-  woodstreet_uploads:
+    l9mmykm5zaalgdc23vudvata_woodstreet-data:
+        name: l9mmykm5zaalgdc23vudvata_woodstreet-data
+    l9mmykm5zaalgdc23vudvata_woodstreet-uploads:
+        name: l9mmykm5zaalgdc23vudvata_woodstreet-uploads
+networks:
+    l9mmykm5zaalgdc23vudvata:
+        name: l9mmykm5zaalgdc23vudvata
+        external: true
