@@ -6,19 +6,16 @@ services:
     dns:
       - 1.1.1.1
       - 8.8.8.8
-    ports:
-      - '3000'
     environment:
       - NODE_ENV=production
       - HOME=/root
       - PORT=3000
+    expose:
+      - '3000'
     volumes:
       - woodstreet_data:/app/data
       - woodstreet_uploads:/app/public/uploads
       - /root/.hermes/mcp-tokens:/root/.hermes/mcp-tokens:ro
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.woodstreet.loadbalancer.server.port=3000
 
 volumes:
   woodstreet_data:
