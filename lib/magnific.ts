@@ -72,7 +72,6 @@ async function getClient(): Promise<Client> {
 async function uploadImageFile(filePath: string): Promise<string> {
   const c = await getClient();
 
-  // Step 1: Request upload URL
   const reqResult = await c.callTool({
     name: 'creations_request_upload',
     arguments: { mimeType: 'image/png' },
@@ -81,7 +80,6 @@ async function uploadImageFile(filePath: string): Promise<string> {
   const reqText = extractTextContent(reqResult);
   console.log('[Magnific] Upload request:', reqText.slice(0, 300));
   
-  // Parse the presigned URL details
   let presignedUrl = '';
   let uploadPath = '';
   try {
@@ -99,7 +97,6 @@ async function uploadImageFile(filePath: string): Promise<string> {
     throw new Error(`Failed to get presigned URL: ${reqText.slice(0, 200)}`);
   }
 
-  // Step 2: PUT the file bytes to the presigned URL
   const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
     readFile(filePath, (err, data) => {
       if (err) reject(err);
@@ -119,7 +116,6 @@ async function uploadImageFile(filePath: string): Promise<string> {
 
   console.log('[Magnific] File uploaded to presigned URL');
 
-  // Step 3: Finalize the upload (path only, no uploads array)
   const finalizeResult = await c.callTool({
     name: 'creations_finalize_upload',
     arguments: { path: uploadPath },
@@ -143,13 +139,11 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
   console.log('[Magnific] Selected option IDs:', selectedOptionIds);
   console.log('[Magnific] Resolved node IDs:', selectedNodeIds);
 
-  // Direct upload the file
   console.log('[Magnific] Uploading file:', filePath);
   const creationId = await uploadImageFile(filePath);
 
   console.log('[Magnific] Creation ID:', creationId);
 
-  // Add creation to Space
   const addResult = await c.callTool({
     name: 'spaces_add_creations',
     arguments: { spaceId: SPACE_ID, creationIdentifiers: [creationId] },
@@ -158,7 +152,6 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
   const addText = extractTextContent(addResult);
   console.log('[Magnific] Added to Space:', addText.slice(0, 300));
 
-  // Connect the new image node to the input node via spaces_edit
   const inputNodeId = INPUT_NODE_ID;
   console.log('[Magnific] Connecting new image to input node:', inputNodeId);
 
@@ -175,13 +168,11 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
   const editText = extractTextContent(editResult);
   console.log('[Magnific] Edit result:', editText.slice(0, 300));
 
-  // Poll the edit to complete
   const editOpId = extractId(editText, 'operationId') || extractId(editText);
   if (editOpId) {
     await pollEditComplete(c, editOpId);
   }
 
-  // Run EACH selected generator in SINGULAR mode (only requested nodes fire)
   const runIds: string[] = [];
   for (const nodeId of selectedNodeIds) {
     console.log('[Magnific] Running singular generator:', nodeId);
@@ -244,29 +235,27 @@ export async function getCreation(creationId: string): Promise<any> {
     arguments: { creationIdentifier: creationId },
   });
   
-  // Try to extract structured data from MCP response
-  if (result?.content && Array.isArray(result.content)) {
-    for (const item of result.content) {
-      if (item.type === 'resource' && item.resource) {
-        const res = item.resource;
-        const data: any = { identifier: creationId };
-        if (res.uri) data.uri = res.uri;
-        if (res.text) {
-          try { Object.assign(data, JSON.parse(res.text)); } catch {}
-        }
-        if (res.blob) data.blob = res.blob;
-        console.log(`[Magnific] getCreation(${creationId}) structured:`, Object.keys(data).join(','));
-        return data;
+  const text = extractTextContent(result);
+  
+  // Parse the MCP key-value text format (key: "value" or key: value)
+  const parsed: any = {};
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const keyVal = line.match(/^(\w+):\s*(.*)/);
+    if (keyVal) {
+      let val = keyVal[2].trim();
+      // Remove surrounding quotes
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
       }
+      parsed[keyVal[1]] = val;
     }
   }
   
-  const text = extractTextContent(result);
-  console.log(`[Magnific] getCreation(${creationId}) text:`, text.slice(0, 300));
-  
-  // Fallback: try JSON parse
-  try { return JSON.parse(text); } catch {}
-  return { identifier: creationId, rawText: text };
+  console.log(`[Magnific] getCreation(${creationId}) keys:`, Object.keys(parsed).join(','));
+  console.log(`[Magnific] getCreation(${creationId}) url:`, (parsed.url || 'none').slice(0, 80));
+
+  return parsed;
 }
 
 export async function disconnect() {
