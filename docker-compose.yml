@@ -1,0 +1,18 @@
+services:
+  woodstreet:
+    build: .
+    container_name: woodstreet-platform
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - HOME=/root
+    volumes:
+      - woodstreet_data:/app/data
+      - woodstreet_uploads:/app/public/uploads
+      - ~/.hermes/mcp-tokens:/root/.hermes/mcp-tokens:ro
+
+volumes:
+  woodstreet_data:
+  woodstreet_uploads:
