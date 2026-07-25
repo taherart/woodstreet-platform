@@ -64,6 +64,7 @@ export default function HomePage() {
     video_orbital: { duration: 10, aspectRatio: '1:1' },
     video_cinematic: { duration: 5, aspectRatio: '1:1' },
   });
+  const [dimensions, setDimensions] = useState({ w: '', h: '', d: '' });
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchCredits(); fetchLibrary(); }, []);
@@ -127,6 +128,7 @@ export default function HomePage() {
       formData.append('image', image);
       formData.append('outputs', JSON.stringify(Array.from(selected)));
       formData.append('videoParams', JSON.stringify(videoParams));
+      formData.append('dimensions', JSON.stringify(dimensions));
 
       const res = await fetch('/api/generate', { method: 'POST', body: formData });
       const data = await res.json();
@@ -312,6 +314,28 @@ export default function HomePage() {
                                         className={`text-[10px] px-2 py-1 rounded-full transition-all ${videoParams[opt.id]?.aspectRatio === r ? 'bg-brown-primary text-white' : 'bg-white/60 text-brown-muted hover:bg-white'}`}>{r}</button>
                                     ))}
                                   </div>
+                                </div>
+                              </div>
+                            )}
+                            {opt.id === 'image_dimensions' && selected.has(opt.id) && (
+                              <div className="mt-2 p-2.5 bg-cream/40 rounded-lg border border-brown-light/15 space-y-2 animate-scale-in">
+                                <span className="text-[10px] text-brown-muted">الأبعاد (سم):</span>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number" placeholder="W (عرض)" value={dimensions.w}
+                                    onChange={(e) => { e.stopPropagation(); setDimensions(prev => ({ ...prev, w: e.target.value })); }}
+                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/30 text-brown-dark placeholder:text-brown-muted/60 focus:outline-none focus:border-brown-primary"
+                                  />
+                                  <input
+                                    type="number" placeholder="H (ارتفاع)" value={dimensions.h}
+                                    onChange={(e) => { e.stopPropagation(); setDimensions(prev => ({ ...prev, h: e.target.value })); }}
+                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/30 text-brown-dark placeholder:text-brown-muted/60 focus:outline-none focus:border-brown-primary"
+                                  />
+                                  <input
+                                    type="number" placeholder="D (عمق)" value={dimensions.d}
+                                    onChange={(e) => { e.stopPropagation(); setDimensions(prev => ({ ...prev, d: e.target.value })); }}
+                                    className="w-full text-[11px] px-2.5 py-1.5 bg-white rounded-lg border border-brown-light/30 text-brown-dark placeholder:text-brown-muted/60 focus:outline-none focus:border-brown-primary"
+                                  />
                                 </div>
                               </div>
                             )}

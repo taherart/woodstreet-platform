@@ -65,6 +65,15 @@ export const OUTPUT_OPTIONS: OutputOption[] = [
     category: 'lifestyle',
   },
   {
+    id: 'image_dimensions',
+    nodeId: '12d68131-926e-4e8b-a1e2-1ffc5635419b',
+    label: 'صورة مع الأبعاد (Isometric)',
+    labelEn: 'Isometric with Dimensions',
+    type: 'image',
+    cost: 1,
+    category: 'product',
+  },
+  {
     id: 'video_orbital',
     nodeId: 'bbcae213-0b37-44cb-b824-337d54c94101',
     label: 'فيديو دوران 180 درجة',

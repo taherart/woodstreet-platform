@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const imageFile = formData.get('image') as File;
     const outputRaw = formData.get('outputs') as string;
     const videoParamsRaw = formData.get('videoParams') as string;
+    const dimensionsRaw = formData.get('dimensions') as string;
 
     if (!imageFile || !outputRaw) {
       return NextResponse.json({ error: 'الصورة والمخرجات مطلوبة' }, { status: 400 });
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
 
     const selectedIds: string[] = JSON.parse(outputRaw);
     const videoParams: Record<string, VideoParams> | undefined = videoParamsRaw ? JSON.parse(videoParamsRaw) : undefined;
+    const dimensions: { w: string; h: string; d: string } | undefined = dimensionsRaw ? JSON.parse(dimensionsRaw) : undefined;
 
     if (selectedIds.length === 0) {
       return NextResponse.json({ error: 'اختر مخرجًا واحدًا على الأقل' }, { status: 400 });
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     console.log(`[Generate] Selected: ${selectedIds.join(', ')}`);
 
     // Fire and forget: upload to Magnific via presigned PUT, run Space, poll, download
-    runSpace(imagePath, selectedIds, videoParams)
+    runSpace(imagePath, selectedIds, videoParams, dimensions)
       .then(async (runIds) => {
         updateGenerationStatus(genId, 'running', runIds.join(','));
         console.log(`[Generate] ${runIds.length} workflows started for ${genId}:`, runIds);

@@ -139,10 +139,10 @@ async function uploadImageFile(filePath: string): Promise<string> {
 async function cleanSpace(c: Client): Promise<void> {
   console.log('[Magnific] Cleaning space...');
   const cleanQuery = `Clean up this space:
-1. DELETE any creation nodes that are NOT the input node and NOT the output creation nodes (0e658e46, 1b6af891, 2827cf46, 6d059735, 6f5cbc72, afa0c655, e52a1fe7)
+1. DELETE any creation nodes that are NOT the input node and NOT the output creation nodes (2fe0f50a, 6d059735, 6f5cbc72, afa0c655, e52a1fe7, 2827cf46, 1b6af891, 0e658e46)
 2. Remove ALL existing connections
-3. Connect the input node (cc6739fc) to all 7 generators: 3aca2fcb, f3514c2b, a03ceff9, 08738244, d53a1432, bbcae213, 1b98ba4e
-Result must be exactly: input → 7 generators, no other nodes or connections`;
+3. Connect the input node (cc6739fc) to all 8 generators: 3aca2fcb, f3514c2b, a03ceff9, 08738244, d53a1432, 12d68131, bbcae213, 1b98ba4e
+Result must be exactly: input → 8 generators, no other nodes or connections`;
 
   const result = await c.callTool({
     name: 'spaces_edit',
@@ -157,7 +157,7 @@ Result must be exactly: input → 7 generators, no other nodes or connections`;
   }
 }
 
-export async function runSpace(filePath: string, selectedOptionIds: string[], videoParams?: Record<string, VideoParams>): Promise<string[]> {
+export async function runSpace(filePath: string, selectedOptionIds: string[], videoParams?: Record<string, VideoParams>, dimensions?: { w: string; h: string; d: string }): Promise<string[]> {
   const c = await getClient();
   const selectedNodeIds = getNodeIds(selectedOptionIds);
 
@@ -246,6 +246,28 @@ export async function runSpace(filePath: string, selectedOptionIds: string[], vi
         const vEditOpId = extractId(vEditText, 'operationId') || extractId(vEditText);
         if (vEditOpId) await pollEditComplete(c, vEditOpId);
       }
+    }
+  }
+
+  // Apply dimension prompt if image_dimensions selected
+  if (dimensions && selectedOptionIds.includes('image_dimensions')) {
+    const dimNode = OUTPUT_OPTIONS.find(o => o.id === 'image_dimensions');
+    if (dimNode && (dimensions.w || dimensions.h || dimensions.d)) {
+      const w = dimensions.w || '?';
+      const h = dimensions.h || '?';
+      const d = dimensions.d || '?';
+      console.log(`[Magnific] Setting dimensions on node ${dimNode.nodeId}: W=${w}, H=${h}, D=${d}`);
+      const dimEditResult = await c.callTool({
+        name: 'spaces_edit',
+        arguments: {
+          spaceId: SPACE_ID,
+          selectedElementIds: [dimNode.nodeId],
+          query: `Update the prompt of this image generator to include exact dimensions. Set the prompt to: "Create an isometric technical view of this product on a clean white background. Show the product in perfect 3/4 isometric perspective with professional studio lighting. Include dimension lines and arrows marking the exact dimensions: width=${w}cm, height=${h}cm, depth=${d}cm. Numbers must be clearly visible in a technical drawing style. The product must look exactly identical to the reference — preserve all product details, colors, materials, and proportions precisely. Minimalist technical blueprint aesthetic, crisp lines."`,
+        },
+      });
+      const dimEditText = extractTextContent(dimEditResult);
+      const dimEditOpId = extractId(dimEditText, 'operationId') || extractId(dimEditText);
+      if (dimEditOpId) await pollEditComplete(c, dimEditOpId);
     }
   }
 
