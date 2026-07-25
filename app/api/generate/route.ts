@@ -36,6 +36,20 @@ export async function POST(request: NextRequest) {
     // Save uploaded image to public/uploads
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     await mkdir(uploadsDir, { recursive: true });
+
+    // Auto-clean: delete old upload files (keep only last 5)
+    const { readdir, unlink } = await import('fs/promises');
+    const existingFiles = await readdir(uploadsDir);
+    const imageFiles = existingFiles.filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f));
+    if (imageFiles.length > 5) {
+      // Sort by name (UUID-based, chronological) and delete oldest
+      const toDelete = imageFiles.sort().slice(0, imageFiles.length - 5);
+      for (const f of toDelete) {
+        await unlink(path.join(uploadsDir, f));
+        console.log(`[Cleanup] Deleted old upload: ${f}`);
+      }
+    }
+
     const ext = imageFile.name.split('.').pop() || 'png';
     const imageName = `${uuid()}.${ext}`;
     const imagePath = path.join(uploadsDir, imageName);

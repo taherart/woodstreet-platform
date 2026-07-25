@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { readFileSync, existsSync, writeFileSync, readFile } from 'fs';
 import { join } from 'path';
-import { SPACE_ID, INPUT_NODE_ID, getNodeIds } from './woodstreet-nodes';
+import { SPACE_ID, getNodeIds } from './woodstreet-nodes';
 
 const MAGNIFIC_MCP_URL = 'https://mcp.magnific.com';
 const TOKENS_PATH = join(process.env.HOME || '/root', '.hermes', 'mcp-tokens', 'magnific.json');
@@ -139,11 +139,12 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
   console.log('[Magnific] Selected option IDs:', selectedOptionIds);
   console.log('[Magnific] Resolved node IDs:', selectedNodeIds);
 
+  // 1. Upload the image
   console.log('[Magnific] Uploading file:', filePath);
   const creationId = await uploadImageFile(filePath);
-
   console.log('[Magnific] Creation ID:', creationId);
 
+  // 2. Add creation to Space and get its node ID
   const addResult = await c.callTool({
     name: 'spaces_add_creations',
     arguments: { spaceId: SPACE_ID, creationIdentifiers: [creationId] },
@@ -152,17 +153,42 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
   const addText = extractTextContent(addResult);
   console.log('[Magnific] Added to Space:', addText.slice(0, 300));
 
-  const inputNodeId = INPUT_NODE_ID;
-  console.log('[Magnific] Connecting new image to input node:', inputNodeId);
+  // Extract the new node ID from the add result
+  let newNodeId = '';
+  try {
+    const parsed = JSON.parse(addText);
+    newNodeId = parsed?.result?.results?.[0]?.nodeId || '';
+  } catch {}
+  if (!newNodeId) {
+    // Fallback: try parsing structuredContent
+    newNodeId = (addResult as any)?.structuredContent?.result?.results?.[0]?.nodeId || '';
+  }
 
+  if (!newNodeId) {
+    console.error('[Magnific] Could not extract new node ID from add result');
+    // Fallback: run without reconnecting (old behavior)
+    const runIds: string[] = [];
+    for (const nodeId of selectedNodeIds) {
+      const runResult = await c.callTool({
+        name: 'spaces_run',
+        arguments: { spaceId: SPACE_ID, startNodeId: nodeId, mode: 'singular' },
+      });
+      const runId = extractId(extractTextContent(runResult), 'workflowRunIdentifier');
+      if (runId) runIds.push(runId);
+    }
+    return runIds;
+  }
+
+  console.log('[Magnific] New image node ID:', newNodeId);
+
+  // 3. Reconnect: disconnect input → selected gens, connect new image → selected gens
+  const genList = selectedNodeIds.join(', ');
+  const editQuery = `Disconnect the input node (cc6739fc-4f96-46a8-8db8-c730befb1c66) from these generators: ${genList}. Then connect the new image node (${newNodeId}) directly to these same generators: ${genList} — using the new image as their image reference. Remove old connections and create new ones.`;
+
+  console.log('[Magnific] Reconnecting image to selected generators...');
   const editResult = await c.callTool({
     name: 'spaces_edit',
-    arguments: {
-      spaceId: SPACE_ID,
-      query: 'set this newly added image as the image for the input node — replace any old image on the input node with this new creation',
-      anchorElementId: inputNodeId,
-      anchorDirection: 'right',
-    },
+    arguments: { spaceId: SPACE_ID, query: editQuery },
   });
 
   const editText = extractTextContent(editResult);
@@ -173,16 +199,13 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
     await pollEditComplete(c, editOpId);
   }
 
+  // 4. Run EACH selected generator in SINGULAR mode
   const runIds: string[] = [];
   for (const nodeId of selectedNodeIds) {
     console.log('[Magnific] Running singular generator:', nodeId);
     const runResult = await c.callTool({
       name: 'spaces_run',
-      arguments: {
-        spaceId: SPACE_ID,
-        startNodeId: nodeId,
-        mode: 'singular',
-      },
+      arguments: { spaceId: SPACE_ID, startNodeId: nodeId, mode: 'singular' },
     });
 
     const runText = extractTextContent(runResult);
