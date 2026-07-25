@@ -46,17 +46,13 @@ export async function POST(request: NextRequest) {
     const { id: genId, outputs } = createGeneration(imageUrl, selectedIds, totalCost);
     updateGenerationStatus(genId, 'processing');
 
-    // Build the full public URL for Magnific to download the image
-    const host = request.headers.get('host') || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const fullImageUrl = `${protocol}://${host}${imageUrl}`;
-
+    // Use direct file upload (presigned PUT) instead of public URL
     console.log(`[Generate] Starting Magnific workflow for ${genId}`);
-    console.log(`[Generate] Image URL: ${fullImageUrl}`);
+    console.log(`[Generate] Image path: ${imagePath}`);
     console.log(`[Generate] Selected: ${selectedIds.join(', ')}`);
 
-    // Fire and forget: run Space, poll, download results
-    runSpace(fullImageUrl, selectedIds)
+    // Fire and forget: upload to Magnific via presigned PUT, run Space, poll, download
+    runSpace(imagePath, selectedIds)
       .then(async (runId) => {
         updateGenerationStatus(genId, 'running', runId);
         console.log(`[Generate] Workflow ${runId} started for ${genId}`);
@@ -84,9 +80,12 @@ export async function POST(request: NextRequest) {
                     if (output && cid) {
                       try {
                         const creation = await getCreation(cid);
-                        const dlUrl = creation?.url || creation?.previewUrl;
+                        // Extract URL from various possible response formats
+                        const dlUrl = creation?.url || creation?.previewUrl 
+                          || creation?.thumbnailUrl || creation?.originalUrl
+                          || creation?.uri || creation?.blob;
                         updateOutputStatus(output.id, 'completed', cid, dlUrl);
-                        console.log(`[Generate] Output ${output.label}: ${cid}`);
+                        console.log(`[Generate] Output ${output.label}: ${cid} dl=${(dlUrl||'none').slice(0,60)}`);
                       } catch (e) {
                         console.error(`[Generate] Failed to get creation ${cid}:`, e);
                         updateOutputStatus(output.id, 'failed');

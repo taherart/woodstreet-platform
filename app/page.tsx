@@ -12,6 +12,70 @@ interface OutputRow {
   category: string;
 }
 
+/* ─── Helper icons ─── */
+const IconUpload = () => (
+  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="text-brown-primary/70">
+    <rect x="4" y="12" width="32" height="24" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+    <path d="M16 28V16M16 16L12 20M16 16L20 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="28" cy="21" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+  </svg>
+);
+
+const IconCheck = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M6 10.5L9 13L14 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const IconDownload = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M2 12V13.5H14V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+const IconCoin = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="1.2" />
+    <circle cx="9" cy="9" r="5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 2" />
+    <text x="9" y="12" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor">$</text>
+  </svg>
+);
+
+const IconSparkle = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M8 1L9.5 6.5H15L10.5 10L12 15.5L8 12L4 15.5L5.5 10L1 6.5H6.5L8 1Z" fill="currentColor" opacity="0.8" />
+  </svg>
+);
+
+const IconChevronDown = ({ open }: { open: boolean }) => (
+  <svg
+    width="16" height="16" viewBox="0 0 16 16" fill="none"
+    className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+  >
+    <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const categoryMeta: Record<string, { icon: string; title: string; desc: string }> = {
+  product: {
+    icon: '📦',
+    title: 'صور المنتج الاحترافية',
+    desc: 'خلفيات بيضاء بجودة عالية',
+  },
+  lifestyle: {
+    icon: '🏠',
+    title: 'صور في بيئة حقيقية',
+    desc: 'تصميم داخلي مصري فاخر',
+  },
+  video: {
+    icon: '🎥',
+    title: 'فيديوهات تسويقية',
+    desc: 'مقاطع متحركة احترافية',
+  },
+};
+
 export default function HomePage() {
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -24,6 +88,8 @@ export default function HomePage() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminCredits, setAdminCredits] = useState('');
   const [logs, setLogs] = useState<any[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['product', 'lifestyle', 'video']));
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchCredits(); fetchLogs(); }, []);
@@ -66,6 +132,14 @@ export default function HomePage() {
     });
   };
 
+  const toggleExpand = (cat: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      next.has(cat) ? next.delete(cat) : next.add(cat);
+      return next;
+    });
+  };
+
   const handleGenerate = async () => {
     if (!image || selected.size === 0) {
       setError('اختر صورة ومخرج واحد على الأقل');
@@ -93,8 +167,7 @@ export default function HomePage() {
       if (!res.ok) { setError(data.error); setGenerating(false); return; }
 
       setStatus(`تم بدء التوليد — ${data.outputs.length} مخرجات`);
-      
-      // Poll for results
+
       let pollCount = 0;
       const maxPolls = 120;
       const poll = setInterval(async () => {
@@ -134,219 +207,592 @@ export default function HomePage() {
 
   const categories = [...new Set(OUTPUT_OPTIONS.map(o => o.category))];
   const totalCost = getTotalCost(Array.from(selected));
+  const completedCount = results.filter(r => r.status === 'completed').length;
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-[#D4C4B7] bg-[#F5F0EB]/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-[#8B6F47] text-white flex items-center justify-center text-sm font-bold">W</div>
-            <h1 className="text-xl font-bold text-[#3C2415]">Woodstreet Studio</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-white/80 rounded-full px-4 py-1.5 border border-[#D4C4B7]">
-              <span className="text-[#8B6F47] text-sm">🪙</span>
-              <span className="font-semibold text-[#3C2415]">{credits ?? '...'}</span>
-              <span className="text-xs text-[#8B6F47]">كريدت</span>
+    <div className="min-h-screen relative">
+      {/* Ambient background */}
+      <div className="ambient-bg" />
+
+      {/* ──────── HEADER ──────── */}
+      <header className="sticky top-0 z-50 border-b border-brown-light/20">
+        <div className="glass-card !rounded-none !border-0 !border-b border-brown-light/20">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brown-primary to-brown-dark flex items-center justify-center shadow-lg shadow-brown-primary/25">
+                  <span className="text-white font-bold text-sm tracking-tight">W</span>
+                </div>
+                <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-gold-light to-brown-primary opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold text-brown-dark leading-tight">Woodstreet Studio</h1>
+                <p className="text-xs text-brown-muted">منصة إنتاج المحتوى التسويقي</p>
+              </div>
             </div>
-            <button
-              onClick={() => setAdminOpen(!adminOpen)}
-              className="text-[#8B6F47] hover:text-[#3C2415] text-sm underline"
-            >
-              إدارة
-            </button>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              {/* Credits pill */}
+              <div className="flex items-center gap-2 bg-white/70 backdrop-blur rounded-full px-4 py-2 border border-brown-light/30 shadow-sm">
+                <span className="text-gold"><IconCoin /></span>
+                <span className="font-bold text-brown-dark text-sm tabular-nums">{credits !== null ? credits.toLocaleString('ar-EG') : '—'}</span>
+                <span className="text-xs text-brown-muted hidden sm:inline">كريدت</span>
+              </div>
+
+              {/* Admin toggle */}
+              <button
+                onClick={() => setAdminOpen(!adminOpen)}
+                className={`btn-outline text-xs px-4 py-2 rounded-full inline-flex items-center gap-1.5 ${
+                  adminOpen ? 'bg-brown-primary/10 border-brown-primary text-brown-primary' : ''
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M7 4.5V7.5M7 9.5H7.005" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+                <span className="hidden sm:inline">الإدارة</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Admin Panel */}
+      {/* ──────── ADMIN PANEL ──────── */}
       {adminOpen && (
-        <div className="max-w-5xl mx-auto px-4 mt-4">
-          <div className="bg-white rounded-xl border border-[#D4C4B7] p-6">
-            <h2 className="text-lg font-bold text-[#3C2415] mb-4">لوحة التحكم</h2>
-            <div className="flex items-center gap-4 mb-6">
-              <label className="text-sm text-[#8B6F47]">الرصيد الشهري:</label>
-              <input
-                type="number"
-                value={adminCredits}
-                onChange={e => setAdminCredits(e.target.value)}
-                placeholder="مثلاً: 5000"
-                className="border border-[#D4C4B7] rounded-lg px-3 py-2 text-sm w-32"
-              />
-              <button
-                onClick={handleSetCredits}
-                className="bg-[#8B6F47] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#6B5437] transition"
-              >
-                تعيين
-              </button>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#3C2415] mb-2">آخر العمليات</h3>
-              <div className="max-h-48 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-[#8B6F47] border-b">
-                      <th className="text-left py-1">الوقت</th>
-                      <th className="text-left py-1">النوع</th>
-                      <th className="text-left py-1">المبلغ</th>
-                      <th className="text-left py-1">الوصف</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.slice(0, 10).map((log: any, i: number) => (
-                      <tr key={i} className="border-b border-[#F5F0EB]">
-                        <td className="py-1 text-[#8B6F47]">{new Date(log.created_at).toLocaleString('ar-EG')}</td>
-                        <td className="py-1">{log.action === 'debit' ? '🔴 خصم' : log.action === 'admin_add' ? '🟢 إضافة' : '🔄 تجديد'}</td>
-                        <td className="py-1 font-mono">{log.amount}</td>
-                        <td className="py-1 text-[#8B6F47]">{log.description || '-'}</td>
+        <div className="animate-slide-down overflow-hidden">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+            <div className="glass-card p-6 animate-scale-in">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-brown-dark">لوحة التحكم</h2>
+                  <p className="text-xs text-brown-muted mt-0.5">إدارة الرصيد ومراقبة الاستخدام</p>
+                </div>
+                <button
+                  onClick={() => setAdminOpen(false)}
+                  className="text-brown-muted hover:text-brown-dark transition-colors"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M6 6L14 14M14 6L6 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Credit setter */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8 p-4 bg-cream/50 rounded-2xl border border-brown-light/20">
+                <label className="text-sm font-medium text-brown-dark whitespace-nowrap">تعيين الرصيد الشهري:</label>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:flex-none">
+                    <input
+                      type="number"
+                      value={adminCredits}
+                      onChange={e => setAdminCredits(e.target.value)}
+                      placeholder="5000"
+                      min="0"
+                      className="w-full sm:w-36 ps-10 pe-4 py-2.5 bg-white rounded-xl border border-brown-light/40 text-sm text-brown-dark placeholder:text-brown-muted focus:outline-none focus:border-brown-primary focus:ring-2 focus:ring-brown-primary/10 transition-all"
+                    />
+                    <span className="absolute start-3 top-1/2 -translate-y-1/2 text-brown-muted text-sm">🪙</span>
+                  </div>
+                  <button
+                    onClick={handleSetCredits}
+                    className="btn-primary px-5 py-2.5 text-sm whitespace-nowrap"
+                  >
+                    تعيين الرصيد
+                  </button>
+                </div>
+              </div>
+
+              {/* Logs */}
+              <div>
+                <h3 className="text-sm font-semibold text-brown-dark mb-3 flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.2" />
+                    <path d="M5 6H11M5 9H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                  سجل العمليات
+                </h3>
+                <div className="overflow-x-auto rounded-xl border border-brown-light/20">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>الوقت</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الوصف</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {logs.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center text-brown-muted py-8">
+                            لا توجد عمليات بعد
+                          </td>
+                        </tr>
+                      ) : (
+                        logs.slice(0, 20).map((log: any, i: number) => (
+                          <tr key={i}>
+                            <td className="text-brown-muted whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleString('ar-EG')}
+                            </td>
+                            <td>
+                              <span className={`status-badge ${
+                                log.action === 'debit' ? 'failed' :
+                                log.action === 'admin_add' ? 'completed' : 'processing'
+                              }`}>
+                                {log.action === 'debit' ? 'خصم' :
+                                 log.action === 'admin_add' ? 'إضافة' : 'تجديد'}
+                              </span>
+                            </td>
+                            <td className="font-mono text-sm">{log.amount.toLocaleString('ar-EG')}</td>
+                            <td className="text-brown-muted max-w-[200px] truncate">{log.description || '—'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Upload Section */}
-        <section className="mb-8">
-          <div
-            onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition ${
-              imagePreview
-                ? 'border-[#8B6F47] bg-[#F5F0EB]'
-                : 'border-[#D4C4B7] hover:border-[#8B6F47] hover:bg-[#F5F0EB]/50'
-            }`}
-          >
-            {imagePreview ? (
-              <div className="flex flex-col items-center gap-4">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-h-64 rounded-lg shadow-md"
-                />
-                <span className="text-sm text-[#8B6F47]">اضغط للتغيير</span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-16 h-16 rounded-full bg-[#F5F0EB] flex items-center justify-center text-3xl">
-                  📸
-                </div>
-                <p className="text-[#8B6F47] font-medium">ارفع صورة المنتج</p>
-                <p className="text-sm text-[#B8A590]">PNG, JPG, WebP — حتى 10MB</p>
-              </div>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleImage}
-              className="hidden"
-            />
+      {/* ──────── MAIN ──────── */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {/* Hero */}
+        <div className="text-center mb-12 animate-fade-in-up">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-cream/60 backdrop-blur rounded-full border border-brown-light/20 mb-6 text-xs text-brown-muted">
+            <IconSparkle />
+            <span>مدعوم بتقنية Magnific AI</span>
           </div>
-        </section>
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-brown-dark font-[family-name:var(--font-display)] leading-tight mb-3">
+            <span className="text-gradient">حوّل منتجاتك</span>
+            <br className="sm:hidden" />
+            {' '}إلى محتوى تسويقي احترافي
+          </h2>
+          <p className="text-brown-muted text-sm sm:text-base max-w-lg mx-auto">
+            ارفع صورة منتج واحد واحصل على صور وفيديوهات جاهزة للنشر — بضغطة زر
+          </p>
+        </div>
 
-        {/* Output Selection */}
-        <section className="mb-8">
-          <h2 className="text-lg font-bold text-[#3C2415] mb-4">اختر المخرجات المطلوبة</h2>
-          <div className="space-y-4">
-            {categories.map(cat => (
-              <div key={cat} className="bg-white rounded-xl border border-[#D4C4B7] overflow-hidden">
-                <button
-                  onClick={() => toggleCategory(cat)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F5F0EB]/50 transition"
-                >
-                  <span className="font-semibold text-[#3C2415] text-sm">
-                    {cat === 'product' ? '📦 صور المنتج' : cat === 'lifestyle' ? '🏠 صور في موقع حقيقي' : '🎥 فيديو'}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 stagger">
+          {/* ─── LEFT: Upload + Options ─── */}
+          <div className="lg:col-span-3 space-y-6">
+
+            {/* Upload Section */}
+            <section
+              className={`glass-card glass-card-hover upload-zone p-8 sm:p-12 text-center cursor-pointer ${
+                dragOver ? 'drag-over' : ''
+              } ${imagePreview ? 'border-brown-primary/30' : ''}`}
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file && file.type.startsWith('image/')) {
+                  setImage(file);
+                  setImagePreview(URL.createObjectURL(file));
+                  setError(null);
+                }
+              }}
+            >
+              {imagePreview ? (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative group">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="max-h-64 rounded-2xl shadow-card object-contain"
+                    />
+                    <div className="absolute inset-0 bg-brown-dark/0 group-hover:bg-brown-dark/10 rounded-2xl transition-all duration-300 flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 backdrop-blur text-brown-dark text-xs px-3 py-1.5 rounded-full shadow-sm">
+                        اضغط للتغيير
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-brown-muted">{image?.name}</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-5">
+                  <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br from-cream to-brown-light/30 flex items-center justify-center transition-all duration-500 ${dragOver ? 'scale-110 shadow-glow' : ''}`}>
+                    <IconUpload />
+                  </div>
+                  <div>
+                    <p className="text-brown-dark font-semibold text-base mb-1">ارفع صورة المنتج</p>
+                    <p className="text-brown-muted text-sm">اسحب وأفلت أو اضغط للاختيار</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-brown-muted">
+                    <span className="px-2.5 py-1 bg-cream/50 rounded-full border border-brown-light/20">PNG</span>
+                    <span className="px-2.5 py-1 bg-cream/50 rounded-full border border-brown-light/20">JPG</span>
+                    <span className="px-2.5 py-1 bg-cream/50 rounded-full border border-brown-light/20">WebP</span>
+                    <span className="text-brown-muted/60">حتى 10MB</span>
+                  </div>
+                </div>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleImage}
+                className="hidden"
+              />
+            </section>
+
+            {/* Output Selection */}
+            <section>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-lg font-bold text-brown-dark">اختر المخرجات</h3>
+                  <p className="text-xs text-brown-muted mt-0.5">حدد المحتوى التسويقي المطلوب</p>
+                </div>
+                {selected.size > 0 && (
+                  <span className="text-xs font-medium text-brown-primary bg-brown-primary/8 px-3 py-1.5 rounded-full">
+                    {selected.size} مخرجات محددة
                   </span>
-                  <span className="text-xs text-[#8B6F47]">
-                    {OUTPUT_OPTIONS.filter(o => o.category === cat).every(o => selected.has(o.id)) ? 'إلغاء الكل' : 'تحديد الكل'}
-                  </span>
-                </button>
-                <div className="px-4 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {OUTPUT_OPTIONS.filter(o => o.category === cat).map(opt => (
-                    <label
-                      key={opt.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                        selected.has(opt.id)
-                          ? 'border-[#8B6F47] bg-[#F5F0EB]'
-                          : 'border-transparent hover:bg-[#F5F0EB]/50'
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {categories.map((cat) => {
+                  const catOpts = OUTPUT_OPTIONS.filter(o => o.category === cat);
+                  const meta = categoryMeta[cat] || { icon: '📋', title: cat, desc: '' };
+                  const allCatSelected = catOpts.every(o => selected.has(o.id));
+                  const someCatSelected = catOpts.some(o => selected.has(o.id));
+                  const isExpanded = expandedCategories.has(cat);
+
+                  return (
+                    <div
+                      key={cat}
+                      className={`glass-card overflow-hidden transition-all duration-300 ${
+                        someCatSelected ? 'border-brown-primary/25' : ''
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selected.has(opt.id)}
-                        onChange={() => toggleOutput(opt.id)}
-                        className="accent-[#8B6F47] w-4 h-4"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-[#3C2415]">{opt.label}</p>
-                        <p className="text-xs text-[#8B6F47]">
-                          {opt.type === 'video' ? '🎬' : '🖼️'} {opt.cost} كريدت
-                        </p>
+                      {/* Category header */}
+                      <button
+                        onClick={() => toggleExpand(cat)}
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-cream/30 transition-colors"
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-300 ${
+                          someCatSelected
+                            ? 'bg-brown-primary/10 shadow-sm shadow-brown-primary/10'
+                            : 'bg-cream/50'
+                        }`}>
+                          {meta.icon}
+                        </div>
+                        <div className="flex-1 text-right">
+                          <p className="text-sm font-semibold text-brown-dark">{meta.title}</p>
+                          <p className="text-xs text-brown-muted">{meta.desc}</p>
+                        </div>
+                        {/* Select all */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleCategory(cat); }}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-all ml-2 ${
+                            allCatSelected
+                              ? 'bg-brown-primary text-white border-brown-primary'
+                              : 'border-brown-light/40 text-brown-muted hover:border-brown-primary hover:text-brown-primary'
+                          }`}
+                        >
+                          {allCatSelected ? 'تم تحديد الكل' : someCatSelected ? 'تحديد الكل' : 'تحديد الكل'}
+                        </button>
+                        <IconChevronDown open={isExpanded} />
+                      </button>
+
+                      {/* Options grid */}
+                      <div
+                        className={`grid grid-cols-1 sm:grid-cols-2 gap-2 px-5 pb-4 transition-all duration-300 ${
+                          isExpanded ? 'opacity-100' : 'hidden opacity-0'
+                        }`}
+                      >
+                        {catOpts.map((opt) => (
+                          <label
+                            key={opt.id}
+                            className={`checkbox-card flex items-center gap-3 p-3.5 rounded-xl border transition-all duration-300 ${
+                              selected.has(opt.id)
+                                ? 'border-brown-primary/30 bg-cream/60'
+                                : 'border-transparent bg-white/40'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected.has(opt.id)}
+                              onChange={() => toggleOutput(opt.id)}
+                            />
+                            <div className="check-indicator" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-brown-dark truncate">{opt.label}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-brown-muted flex items-center gap-1">
+                                  {opt.type === 'video' ? (
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                      <rect x="1.5" y="2.5" width="9" height="7" rx="1" stroke="currentColor" strokeWidth="0.8" />
+                                      <polygon points="5,4 5,8 8,6" fill="currentColor" />
+                                    </svg>
+                                  ) : (
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                      <rect x="1.5" y="1.5" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="0.8" />
+                                      <circle cx="4.5" cy="4.5" r="1" stroke="currentColor" strokeWidth="0.8" />
+                                      <path d="M1.5 9L4 7L6 8.5L10.5 2.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                  {opt.cost} كريدت
+                                </span>
+                              </div>
+                            </div>
+                          </label>
+                        ))}
                       </div>
-                    </label>
-                  ))}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            </section>
           </div>
-        </section>
 
-        {/* Generate Button */}
-        <section className="mb-8">
-          <button
-            onClick={handleGenerate}
-            disabled={generating || !image || selected.size === 0}
-            className="w-full py-4 rounded-xl font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#8B6F47] text-white hover:bg-[#6B5437]"
-          >
-            {generating ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin">⏳</span> جارٍ التوليد...
-              </span>
-            ) : (
-              `توليد (${selected.size} مخرجات — ${totalCost} كريدت)`
-            )}
-          </button>
-          {status && !generating && (
-            <p className="text-center mt-2 text-sm text-[#8B6F47]">{status}</p>
-          )}
-          {error && (
-            <p className="text-center mt-2 text-sm text-red-500">{error}</p>
-          )}
-        </section>
+          {/* ─── RIGHT: Sidebar (Generate + Status) ─── */}
+          <div className="lg:col-span-2">
+            <div className="lg:sticky lg:top-24 space-y-5">
+              {/* Summary card */}
+              <div className="glass-card p-6">
+                <h4 className="text-sm font-semibold text-brown-dark mb-4">ملخص الطلب</h4>
 
-        {/* Results Gallery */}
+                {/* Image status */}
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-brown-light/15">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
+                    imagePreview ? 'bg-green-50 text-green-600' : 'bg-cream/50 text-brown-muted'
+                  }`}>
+                    {imagePreview ? '✓' : '1'}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-brown-dark">صورة المنتج</p>
+                    <p className="text-[10px] text-brown-muted">
+                      {imagePreview ? 'تم رفع الصورة ✓' : 'لم يتم الرفع بعد'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Outputs status */}
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-brown-light/15">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
+                    selected.size > 0 ? 'bg-brown-primary/10 text-brown-primary' : 'bg-cream/50 text-brown-muted'
+                  }`}>
+                    {selected.size || '0'}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-brown-dark">المخرجات المختارة</p>
+                    <p className="text-[10px] text-brown-muted">
+                      {selected.size > 0 ? `${selected.size} مخرجات محددة` : 'لم يتم الاختيار'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Cost */}
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-brown-muted">التكلفة الإجمالية</span>
+                  <span className="text-sm font-bold text-brown-dark flex items-center gap-1">
+                    <span className="text-gold text-xs">🪙</span>
+                    {totalCost.toLocaleString('ar-EG')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-xs text-brown-muted">الرصيد المتاح</span>
+                  <span className={`text-sm font-bold flex items-center gap-1 ${
+                    credits !== null && credits < totalCost ? 'text-red-500' : 'text-brown-dark'
+                  }`}>
+                    <span className="text-xs">🪙</span>
+                    {credits !== null ? credits.toLocaleString('ar-EG') : '—'}
+                  </span>
+                </div>
+
+                {/* Generate button */}
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || !image || selected.size === 0}
+                  className="btn-primary w-full py-3.5 text-base flex items-center justify-center gap-2"
+                >
+                  {generating ? (
+                    <>
+                      <svg className="animate-spin-slow" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeDasharray="35" strokeLinecap="round" />
+                      </svg>
+                      جارٍ التوليد...
+                    </>
+                  ) : (
+                    <>
+                      <IconSparkle />
+                      توليد المحتوى
+                    </>
+                  )}
+                </button>
+
+                {/* Status message */}
+                {generating && status && (
+                  <div className="mt-4 animate-fade-in">
+                    <div className="progress-track mb-2">
+                      <div className="progress-fill animate-progress" style={{ width: '100%' }} />
+                    </div>
+                    <p className="text-xs text-center text-brown-muted">{status}</p>
+                  </div>
+                )}
+
+                {status && !generating && (
+                  <p className={`mt-4 text-xs text-center font-medium ${
+                    status.includes('اكتمل') ? 'text-green-600' :
+                    status.includes('مهلة') ? 'text-amber-600' : 'text-brown-muted'
+                  }`}>
+                    {status}
+                  </p>
+                )}
+
+                {error && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl animate-scale-in">
+                    <p className="text-xs text-red-600 text-center">{error}</p>
+                  </div>
+                )}
+
+                {/* Credit warning */}
+                {credits !== null && credits < totalCost && selected.size > 0 && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl animate-scale-in">
+                    <p className="text-xs text-amber-700 text-center">
+                      الرصيد غير كافٍ. تحتاج {totalCost.toLocaleString('ar-EG')} كريدت
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick tips */}
+              {!results.length && !generating && (
+                <div className="glass-card p-5 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                  <h4 className="text-xs font-semibold text-brown-dark mb-3 flex items-center gap-1.5">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1" />
+                      <path d="M7 4V7.5M7 9.5H7.005" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                    نصائح سريعة
+                  </h4>
+                  <ul className="space-y-2">
+                    {[
+                      'استخدم صورًا بخلفية بيضاء للحصول على أفضل النتائج',
+                      'اختر زاوية واضحة للمنتج (3/4 أو أمامية)',
+                      'يمكنك اختيار أكثر من مخرج في نفس الوقت',
+                    ].map((tip, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-brown-muted">
+                        <span className="text-gold mt-0.5 shrink-0">•</span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ──────── RESULTS GALLERY ──────── */}
         {results.length > 0 && (
-          <section>
-            <h2 className="text-lg font-bold text-[#3C2415] mb-4">النتائج</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <section className="mt-12 animate-fade-in-up">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-brown-dark">النتائج</h3>
+                <p className="text-xs text-brown-muted mt-1">
+                  {completedCount} من {results.length} مكتملة
+                </p>
+              </div>
+              {completedCount === results.length && (
+                <span className="status-badge completed">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1" />
+                    <path d="M4 6L5.5 7.5L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  اكتمل التوليد
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 stagger">
               {results.map((r: any, i: number) => (
-                <div key={i} className="bg-white rounded-xl border border-[#D4C4B7] overflow-hidden">
-                  <div className="aspect-square bg-[#F5F0EB] flex items-center justify-center">
+                <div
+                  key={i}
+                  className="gallery-item glass-card overflow-hidden"
+                >
+                  {/* Media */}
+                  <div className="aspect-[4/3] bg-cream/80 flex items-center justify-center relative">
                     {r.type === 'video' ? (
-                      <span className="text-4xl">🎬</span>
+                      <div className="flex flex-col items-center gap-3 text-brown-muted">
+                        <div className="w-16 h-16 rounded-full bg-brown-dark/5 flex items-center justify-center">
+                          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect x="4" y="6" width="24" height="20" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                            <polygon points="13,10 13,22 24,16" fill="currentColor" />
+                          </svg>
+                        </div>
+                        <span className="text-xs font-medium">{r.label}</span>
+                      </div>
                     ) : r.preview_url ? (
-                      <img src={r.preview_url} alt={r.label} className="w-full h-full object-cover" />
+                      <img
+                        src={r.preview_url}
+                        alt={r.label}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
                     ) : (
-                      <span className="text-4xl">🖼️</span>
+                      <div className="flex flex-col items-center gap-3 text-brown-muted">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                          <rect x="4" y="4" width="32" height="32" rx="4" stroke="currentColor" strokeWidth="1.5" />
+                          <circle cx="15" cy="15" r="4" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M4 30L13 24L20 30L36 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-xs">قيد المعالجة...</span>
+                      </div>
+                    )}
+
+                    {/* Status badge */}
+                    <div className="absolute top-3 start-3">
+                      <span className={`status-badge backdrop-blur-sm ${
+                        r.status === 'completed' ? 'completed' :
+                        r.status === 'processing' ? 'processing' : 'failed'
+                      }`}>
+                        {r.status === 'completed' ? 'مكتمل ✓' :
+                         r.status === 'processing' ? 'قيد المعالجة' : 'فشل'}
+                      </span>
+                    </div>
+
+                    {/* Overlay for completed */}
+                    {r.status === 'completed' && (
+                      <div className="gallery-overlay">
+                        <p className="text-white/90 text-sm font-medium mb-1">{r.label}</p>
+                        {r.download_url && (
+                          <a
+                            href={r.download_url}
+                            download
+                            className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur text-white text-xs px-4 py-2 rounded-full border border-white/20 hover:bg-white/30 transition-all w-fit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <IconDownload />
+                            تحميل
+                          </a>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="p-3">
-                    <p className="text-sm font-medium text-[#3C2415]">{r.label}</p>
-                    <p className="text-xs text-[#8B6F47] mt-1">
-                      {r.status === 'completed' ? '✅ مكتمل' : r.status === 'processing' ? '⏳ قيد المعالجة' : '❌ فشل'}
-                    </p>
+
+                  {/* Info footer */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-brown-dark truncate">{r.label}</p>
+                      <p className="text-[10px] text-brown-muted">
+                        {r.type === 'video' ? 'فيديو' : 'صورة'}
+                      </p>
+                    </div>
                     {r.status === 'completed' && r.download_url && (
                       <a
                         href={r.download_url}
                         download
-                        className="inline-block mt-2 text-xs bg-[#8B6F47] text-white px-3 py-1 rounded-full hover:bg-[#6B5437] transition"
+                        className="btn-outline text-xs px-3 py-1.5 rounded-full inline-flex items-center gap-1"
                       >
-                        تحميل ⬇
+                        <IconDownload />
+                        تحميل
                       </a>
                     )}
                   </div>
@@ -355,6 +801,15 @@ export default function HomePage() {
             </div>
           </section>
         )}
+
+        {/* Footer */}
+        <footer className="mt-20 pb-8 text-center animate-fade-in">
+          <div className="inline-flex items-center gap-2 text-xs text-brown-muted/60">
+            <span>Woodstreet Studio</span>
+            <span>•</span>
+            <span>مدعوم من Magnific AI</span>
+          </div>
+        </footer>
       </main>
     </div>
   );
