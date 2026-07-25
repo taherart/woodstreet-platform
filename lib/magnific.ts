@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { readFileSync, existsSync, writeFileSync, readFile } from 'fs';
 import { join } from 'path';
-import { SPACE_ID, getNodeIds } from './woodstreet-nodes';
+import { SPACE_ID, getNodeIds, VideoParams, OUTPUT_OPTIONS } from './woodstreet-nodes';
 
 const MAGNIFIC_MCP_URL = 'https://mcp.magnific.com';
 const TOKENS_PATH = join(process.env.HOME || '/root', '.hermes', 'mcp-tokens', 'magnific.json');
@@ -132,12 +132,13 @@ async function uploadImageFile(filePath: string): Promise<string> {
   return creationId;
 }
 
-export async function runSpace(filePath: string, selectedOptionIds: string[]): Promise<string[]> {
+export async function runSpace(filePath: string, selectedOptionIds: string[], videoParams?: Record<string, VideoParams>): Promise<string[]> {
   const c = await getClient();
   const selectedNodeIds = getNodeIds(selectedOptionIds);
 
   console.log('[Magnific] Selected option IDs:', selectedOptionIds);
   console.log('[Magnific] Resolved node IDs:', selectedNodeIds);
+  if (videoParams) console.log('[Magnific] Video params:', JSON.stringify(videoParams));
 
   // 1. Upload the image
   console.log('[Magnific] Uploading file:', filePath);
@@ -199,7 +200,28 @@ export async function runSpace(filePath: string, selectedOptionIds: string[]): P
     await pollEditComplete(c, editOpId);
   }
 
-  // 4. Run EACH selected generator in SINGULAR mode
+  // 4. Apply video params: update node duration/aspectRatio via spaces_edit
+  if (videoParams) {
+    for (const [optionId, params] of Object.entries(videoParams)) {
+      const opt = OUTPUT_OPTIONS.find(o => o.id === optionId);
+      if (opt && selectedOptionIds.includes(optionId)) {
+        console.log(`[Magnific] Setting video params for ${optionId}: duration=${params.duration}s, ratio=${params.aspectRatio}`);
+        const vEditResult = await c.callTool({
+          name: 'spaces_edit',
+          arguments: {
+            spaceId: SPACE_ID,
+            selectedElementIds: [opt.nodeId],
+            query: `Set this video generator's duration to ${params.duration} seconds and aspect ratio to ${params.aspectRatio}. Keep model as kling-25 and resolution as 720p.`,
+          },
+        });
+        const vEditText = extractTextContent(vEditResult);
+        const vEditOpId = extractId(vEditText, 'operationId') || extractId(vEditText);
+        if (vEditOpId) await pollEditComplete(c, vEditOpId);
+      }
+    }
+  }
+
+  // 5. Run EACH selected generator in SINGULAR mode
   const runIds: string[] = [];
   for (const nodeId of selectedNodeIds) {
     console.log('[Magnific] Running singular generator:', nodeId);

@@ -91,6 +91,10 @@ export default function HomePage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['product', 'lifestyle', 'video']));
   const [dragOver, setDragOver] = useState(false);
   const [library, setLibrary] = useState<any[]>([]);
+  const [videoParams, setVideoParams] = useState<Record<string, { duration: number; aspectRatio: string }>>({
+    video_orbital: { duration: 10, aspectRatio: '1:1' },
+    video_cinematic: { duration: 5, aspectRatio: '1:1' },
+  });
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchCredits(); fetchLogs(); fetchLibrary(); }, []);
@@ -168,6 +172,7 @@ export default function HomePage() {
       const formData = new FormData();
       formData.append('image', image);
       formData.append('outputs', JSON.stringify(Array.from(selected)));
+      formData.append('videoParams', JSON.stringify(videoParams));
 
       const res = await fetch('/api/generate', { method: 'POST', body: formData });
       const data = await res.json();
@@ -214,7 +219,14 @@ export default function HomePage() {
   };
 
   const categories = [...new Set(OUTPUT_OPTIONS.map(o => o.category))];
-  const totalCost = getTotalCost(Array.from(selected));
+  const totalCost = Array.from(selected).reduce((sum, id) => {
+    const opt = OUTPUT_OPTIONS.find(o => o.id === id);
+    if (!opt) return sum;
+    if (opt.type === 'video' && videoParams[id]) {
+      return sum + (videoParams[id].duration >= 10 ? 200 : 150);
+    }
+    return sum + opt.cost;
+  }, 0);
   const completedCount = results.filter(r => r.status === 'completed').length;
 
   return (
@@ -515,13 +527,13 @@ export default function HomePage() {
                         }`}
                       >
                         {catOpts.map((opt) => (
-                          <label
-                            key={opt.id}
-                            className={`checkbox-card flex items-center gap-3 p-3.5 rounded-xl border transition-all duration-300 ${
-                              selected.has(opt.id)
-                                ? 'border-brown-primary/30 bg-cream/60'
-                                : 'border-transparent bg-white/40'
-                            }`}
+                          <div key={opt.id}>
+                            <label
+                              className={`checkbox-card flex items-center gap-3 p-3.5 rounded-xl border transition-all duration-300 ${
+                                selected.has(opt.id)
+                                  ? 'border-brown-primary/30 bg-cream/60'
+                                  : 'border-transparent bg-white/40'
+                              }`}
                           >
                             <input
                               type="checkbox"
@@ -550,6 +562,50 @@ export default function HomePage() {
                               </div>
                             </div>
                           </label>
+                            {/* Video controls */}
+                            {opt.type === 'video' && selected.has(opt.id) && (
+                              <div className="mt-2 p-2.5 bg-cream/40 rounded-lg border border-brown-light/15 space-y-2 animate-scale-in">
+                                {/* Duration toggle */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-brown-muted shrink-0">المدة:</span>
+                                  <div className="flex gap-1">
+                                    {opt.durations?.map(d => (
+                                      <button
+                                        key={d}
+                                        onClick={(e) => { e.stopPropagation(); setVideoParams(prev => ({ ...prev, [opt.id]: { ...prev[opt.id] || { duration: 10, aspectRatio: '1:1' }, duration: d } })); }}
+                                        className={`text-[10px] px-2.5 py-1 rounded-full transition-all ${
+                                          videoParams[opt.id]?.duration === d
+                                            ? 'bg-brown-primary text-white'
+                                            : 'bg-white/60 text-brown-muted hover:bg-white'
+                                        }`}
+                                      >
+                                        {d}s
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                {/* Aspect ratio */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-brown-muted shrink-0">النسبة:</span>
+                                  <div className="flex gap-1">
+                                    {opt.aspectRatios?.map(r => (
+                                      <button
+                                        key={r}
+                                        onClick={(e) => { e.stopPropagation(); setVideoParams(prev => ({ ...prev, [opt.id]: { ...prev[opt.id] || { duration: 10, aspectRatio: '1:1' }, aspectRatio: r } })); }}
+                                        className={`text-[10px] px-2 py-1 rounded-full transition-all ${
+                                          videoParams[opt.id]?.aspectRatio === r
+                                            ? 'bg-brown-primary text-white'
+                                            : 'bg-white/60 text-brown-muted hover:bg-white'
+                                        }`}
+                                      >
+                                        {r}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>

@@ -4,20 +4,23 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import { createGeneration, updateGenerationStatus, updateOutputStatus, getGeneration } from '@/lib/logger';
 import { deductCredits } from '@/lib/credits';
-import { getTotalCost, OUTPUT_OPTIONS, getNodeIds } from '@/lib/woodstreet-nodes';
+import { getTotalCost, OUTPUT_OPTIONS, getNodeIds, VideoParams } from '@/lib/woodstreet-nodes';
 import { runSpace, pollRunStatus, getCreation, disconnect } from '@/lib/magnific';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const imageFile = formData.get('image') as File;
-    const outputsRaw = formData.get('outputs') as string;
+    const outputRaw = formData.get('outputs') as string;
+    const videoParamsRaw = formData.get('videoParams') as string;
 
-    if (!imageFile || !outputsRaw) {
+    if (!imageFile || !outputRaw) {
       return NextResponse.json({ error: 'الصورة والمخرجات مطلوبة' }, { status: 400 });
     }
 
-    const selectedIds: string[] = JSON.parse(outputsRaw);
+    const selectedIds: string[] = JSON.parse(outputRaw);
+    const videoParams: Record<string, VideoParams> | undefined = videoParamsRaw ? JSON.parse(videoParamsRaw) : undefined;
+
     if (selectedIds.length === 0) {
       return NextResponse.json({ error: 'اختر مخرجًا واحدًا على الأقل' }, { status: 400 });
     }
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'مخرجات غير صالحة' }, { status: 400 });
     }
 
-    const totalCost = getTotalCost(selectedIds);
+    const totalCost = getTotalCost(selectedIds, videoParams);
     const deducted = deductCredits(totalCost, 'pending');
     if (!deducted) {
       return NextResponse.json({ error: 'الرصيد غير كافٍ' }, { status: 402 });
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
     console.log(`[Generate] Selected: ${selectedIds.join(', ')}`);
 
     // Fire and forget: upload to Magnific via presigned PUT, run Space, poll, download
-    runSpace(imagePath, selectedIds)
+    runSpace(imagePath, selectedIds, videoParams)
       .then(async (runIds) => {
         updateGenerationStatus(genId, 'running', runIds.join(','));
         console.log(`[Generate] ${runIds.length} workflows started for ${genId}:`, runIds);
