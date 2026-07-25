@@ -90,3 +90,18 @@ export function getGenerationLogs(limit = 50) {
     LIMIT ?
   `).all(limit);
 }
+
+export function getOutput(outputId: string) {
+  const db = getDb();
+  return db.prepare('SELECT * FROM outputs WHERE id = ?').get(outputId) as any;
+}
+
+export function incrementRegen(outputId: string, newCreationId: string, newPath: string) {
+  const db = getDb();
+  db.prepare(`
+    UPDATE outputs 
+    SET regen_count = regen_count + 1, magnific_creation_id = ?, local_path = ?
+    WHERE id = ?
+  `).run(newCreationId, newPath, outputId);
+  return db.prepare('SELECT regen_count FROM outputs WHERE id = ?').get(outputId) as any;
+}

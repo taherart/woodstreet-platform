@@ -51,6 +51,7 @@ function initSchema(db: Database.Database) {
       local_path TEXT,
       cost INTEGER DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'pending',
+      regen_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (generation_id) REFERENCES generations(id)
     );
@@ -66,6 +67,9 @@ function initSchema(db: Database.Database) {
 
     INSERT OR IGNORE INTO credit_pool (id, total_credits) VALUES (1, 1000);
   `);
+  
+  // Migration: add regen_count if missing
+  try { db.exec(`ALTER TABLE outputs ADD COLUMN regen_count INTEGER DEFAULT 0`); } catch {}
 }
 
 export function closeDb() {

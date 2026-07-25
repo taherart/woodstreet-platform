@@ -353,6 +353,44 @@ export async function getCreation(creationId: string): Promise<any> {
   return parsed;
 }
 
+/**
+ * Re-run a generator node with optional prompt adjustment.
+ * Free — no space cleaning, no credit deduction.
+ */
+export async function regenerateNode(nodeId: string, promptAdjustment: string, _cid: string): Promise<string> {
+  const c = await getClient();
+
+  if (promptAdjustment.trim()) {
+    console.log(`[Magnific] Regen ${nodeId}: "${promptAdjustment}"`);
+    const r = await c.callTool({
+      name: 'spaces_edit',
+      arguments: {
+        spaceId: SPACE_ID, selectedElementIds: [nodeId],
+        query: `Append this to the generator's prompt: "${promptAdjustment}"`,
+      },
+    });
+    const op = extractId(extractTextContent(r), 'operationId');
+    if (op) await pollEditComplete(c, op);
+  }
+
+  const run = await c.callTool({
+    name: 'spaces_run',
+    arguments: { spaceId: SPACE_ID, startNodeId: nodeId, mode: 'singular' },
+  });
+  const runId = extractId(extractTextContent(run), 'workflowRunIdentifier');
+  if (!runId) throw new Error('Regen: no run ID');
+
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const s = await pollRunStatus(runId);
+    if (s.allTerminal) {
+      const ids = s.creationIdentifiers || s.nodeRuns?.[0]?.creationIdentifiers || [];
+      if (ids.length) return ids[0];
+    }
+  }
+  throw new Error('Regen timeout');
+}
+
 export async function disconnect() {
   if (transport) { await transport.close(); transport = null; }
   client = null;

@@ -65,6 +65,9 @@ export default function HomePage() {
     video_cinematic: { duration: 5, aspectRatio: '1:1' },
   });
   const [dimensions, setDimensions] = useState({ w: '', h: '', d: '' });
+  const [regenPrompt, setRegenPrompt] = useState<string>('');
+  const [regenTarget, setRegenTarget] = useState<string | null>(null);
+  const [regenStatus, setRegenStatus] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchCredits(); fetchLibrary(); }, []);
@@ -154,6 +157,35 @@ export default function HomePage() {
     } catch (e) { setError('فشل الاتصال بالخادم'); setGenerating(false); }
   };
 
+  const handleRegen = async (outputId: string) => {
+    setRegenTarget(outputId);
+    setRegenStatus('');
+    setRegenPrompt('');
+  };
+
+  const submitRegen = async () => {
+    if (!regenTarget) return;
+    setRegenStatus('جارٍ إعادة التوليد...');
+    try {
+      const res = await fetch('/api/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outputId: regenTarget, promptAdjustment: regenPrompt }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setRegenStatus(data.error); return; }
+      
+      setRegenStatus('اكتملت إعادة التوليد!');
+      // Update results with new URL
+      setResults(prev => prev.map(r => 
+        r.id === data.outputId ? { ...r, download_url: data.download_url, preview_url: data.preview_url } : r
+      ));
+      setRegenTarget(null);
+      setRegenPrompt('');
+      fetchLibrary();
+    } catch { setRegenStatus('فشل إعادة التوليد'); }
+  };
+
   const categories = [...new Set(OUTPUT_OPTIONS.map(o => o.category))];
   const totalCost = Array.from(selected).reduce((sum, id) => {
     const opt = OUTPUT_OPTIONS.find(o => o.id === id);
@@ -181,7 +213,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-2 bg-white/70 backdrop-blur rounded-full px-4 py-2 border border-brown-light/30 shadow-sm">
               <span className="text-gold"><IconCoin /></span>
-              <span className="font-bold text-brown-dark text-sm tabular-nums">{credits !== null ? credits.toLocaleString('ar-EG') : '—'}</span>
+              <span className="font-bold text-brown-dark text-sm tabular-nums">{credits !== null ? credits.toString() : '—'}</span>
               <span className="text-xs text-brown-muted hidden sm:inline">كريدت</span>
             </div>
         </div>
@@ -190,9 +222,6 @@ export default function HomePage() {
       {/* MAIN */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="text-center mb-12 animate-fade-in-up">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-cream/60 backdrop-blur rounded-full border border-brown-light/20 mb-6 text-xs text-brown-muted">
-            <IconSparkle /><span>مدعوم بتقنية Magnific AI</span>
-          </div>
           <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-brown-dark leading-tight mb-3">
             <span className="text-gradient">حوّل منتجاتك</span> إلى محتوى تسويقي احترافي
           </h2>
@@ -363,7 +392,7 @@ export default function HomePage() {
                   <div className="flex-1"><p className="text-xs font-medium text-brown-dark">المخرجات المختارة</p><p className="text-[10px] text-brown-muted">{selected.size > 0 ? `${selected.size} مخرجات محددة` : 'لم يتم الاختيار'}</p></div>
                 </div>
                 <div className="flex items-center justify-between mb-1"><span className="text-xs text-brown-muted">التكلفة الإجمالية</span><span className="text-sm font-bold text-brown-dark flex items-center gap-1"><span className="text-gold text-xs">🪙</span>{totalCost}</span></div>
-                <div className="flex items-center justify-between mb-5"><span className="text-xs text-brown-muted">الرصيد المتاح</span><span className={`text-sm font-bold flex items-center gap-1 ${credits !== null && credits < totalCost ? 'text-red-500' : 'text-brown-dark'}`}><span className="text-xs">🪙</span>{credits !== null ? credits.toLocaleString('ar-EG') : '—'}</span></div>
+                <div className="flex items-center justify-between mb-5"><span className="text-xs text-brown-muted">الرصيد المتاح</span><span className={`text-sm font-bold flex items-center gap-1 ${credits !== null && credits < totalCost ? 'text-red-500' : 'text-brown-dark'}`}><span className="text-xs">🪙</span>{credits !== null ? credits.toString() : '—'}</span></div>
                 <button onClick={handleGenerate} disabled={generating || !image || selected.size === 0} className="btn-primary w-full py-3.5 text-base flex items-center justify-center gap-2">
                   {generating ? (<><svg className="animate-spin-slow" width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeDasharray="35" strokeLinecap="round" /></svg> جارٍ التوليد...</>) : (<><IconSparkle /> توليد المحتوى</>)}
                 </button>
@@ -390,6 +419,26 @@ export default function HomePage() {
         </div>
 
         {/* RESULTS */}
+        {regenTarget && (
+          <section className="mt-6 animate-scale-in">
+            <div className="glass-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <span className="text-sm text-brown-dark font-medium shrink-0">تعديل إعادة التوليد:</span>
+              <input
+                type="text"
+                value={regenPrompt}
+                onChange={e => setRegenPrompt(e.target.value)}
+                placeholder="اكتب تعليمات إضافية للـ prompt (اختياري)..."
+                className="flex-1 w-full text-xs px-3 py-2 bg-white rounded-lg border border-brown-light/40 text-brown-dark placeholder:text-brown-muted focus:outline-none focus:border-brown-primary"
+              />
+              <div className="flex gap-2 shrink-0">
+                <button onClick={submitRegen} className="btn-primary text-xs px-4 py-2 rounded-lg">إعادة التوليد</button>
+                <button onClick={() => { setRegenTarget(null); setRegenStatus(''); }} className="btn-outline text-xs px-4 py-2 rounded-lg">إلغاء</button>
+              </div>
+            </div>
+            {regenStatus && <p className="text-xs text-center mt-2 text-brown-muted">{regenStatus}</p>}
+          </section>
+        )}
+
         {results.length > 0 && (
           <section className="mt-12 animate-fade-in-up">
             <div className="flex items-center justify-between mb-6">
@@ -418,6 +467,11 @@ export default function HomePage() {
                   <div className="px-4 py-3 flex items-center justify-between">
                     <div><p className="text-sm font-medium text-brown-dark truncate">{r.label}</p><p className="text-[10px] text-brown-muted">{r.type === 'video' ? 'فيديو' : 'صورة'}</p></div>
                     {r.status === 'completed' && r.download_url && (<a href={r.download_url} target="_blank" rel="noopener noreferrer" className="btn-outline text-xs px-3 py-1.5 rounded-full inline-flex items-center gap-1"><IconDownload /> تحميل</a>)}
+                    {r.status === 'completed' && (
+                      <button onClick={() => handleRegen(r.id)} className="text-xs px-2 py-1 rounded-full text-brown-muted hover:text-brown-primary hover:bg-brown-primary/10 transition-all">
+                        🔄 إعادة
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
