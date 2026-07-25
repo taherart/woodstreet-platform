@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { readFileSync, existsSync, writeFileSync, readFile } from 'fs';
 import { join } from 'path';
-import { SPACE_ID, INPUT_NODE_ID } from './woodstreet-nodes';
+import { SPACE_ID, INPUT_NODE_ID, getNodeIds } from './woodstreet-nodes';
 
 const MAGNIFIC_MCP_URL = 'https://mcp.magnific.com';
 const TOKENS_PATH = join(process.env.HOME || '/root', '.hermes', 'mcp-tokens', 'magnific.json');
@@ -86,7 +86,6 @@ async function uploadImageFile(filePath: string): Promise<string> {
   let uploadPath = '';
   try {
     const parsed = JSON.parse(reqText);
-    // Magnific returns proxyUploadUrl for proxy uploads (PUT directly, auto-finalized)
     presignedUrl = parsed.proxyUploadUrl || parsed.url || parsed.uploadUrl || '';
     uploadPath = parsed.path || parsed.key || '';
   } catch {
@@ -137,8 +136,12 @@ async function uploadImageFile(filePath: string): Promise<string> {
   return creationId;
 }
 
-export async function runSpace(filePath: string, selectedNodeIds: string[]): Promise<string> {
+export async function runSpace(filePath: string, selectedOptionIds: string[]): Promise<string[]> {
   const c = await getClient();
+  const selectedNodeIds = getNodeIds(selectedOptionIds);
+
+  console.log('[Magnific] Selected option IDs:', selectedOptionIds);
+  console.log('[Magnific] Resolved node IDs:', selectedNodeIds);
 
   // Direct upload the file
   console.log('[Magnific] Uploading file:', filePath);
@@ -163,7 +166,7 @@ export async function runSpace(filePath: string, selectedNodeIds: string[]): Pro
     name: 'spaces_edit',
     arguments: {
       spaceId: SPACE_ID,
-      query: 'connect this image as input source to the workflow input node — replace the old image with this new one',
+      query: 'set this newly added image as the image for the input node — replace any old image on the input node with this new creation',
       anchorElementId: inputNodeId,
       anchorDirection: 'right',
     },
@@ -178,22 +181,31 @@ export async function runSpace(filePath: string, selectedNodeIds: string[]): Pro
     await pollEditComplete(c, editOpId);
   }
 
-  // Run workflow
-  const runResult = await c.callTool({
-    name: 'spaces_run',
-    arguments: {
-      spaceId: SPACE_ID,
-      startNodeId: inputNodeId,
-      mode: 'downstream',
-    },
-  });
+  // Run EACH selected generator in SINGULAR mode (only requested nodes fire)
+  const runIds: string[] = [];
+  for (const nodeId of selectedNodeIds) {
+    console.log('[Magnific] Running singular generator:', nodeId);
+    const runResult = await c.callTool({
+      name: 'spaces_run',
+      arguments: {
+        spaceId: SPACE_ID,
+        startNodeId: nodeId,
+        mode: 'singular',
+      },
+    });
 
-  const runText = extractTextContent(runResult);
-  const runId = extractId(runText, 'workflowRunIdentifier');
-  if (!runId) throw new Error(`No workflow run ID: ${runText.slice(0, 200)}`);
+    const runText = extractTextContent(runResult);
+    const runId = extractId(runText, 'workflowRunIdentifier');
+    if (runId) {
+      console.log('[Magnific] Singular run started:', runId);
+      runIds.push(runId);
+    } else {
+      console.error('[Magnific] No run ID for node:', nodeId, runText.slice(0, 200));
+    }
+  }
 
-  console.log('[Magnific] Workflow started:', runId);
-  return runId;
+  console.log('[Magnific] All singular runs started:', runIds);
+  return runIds;
 }
 
 async function pollEditComplete(c: Client, operationId: string): Promise<void> {

@@ -53,38 +53,42 @@ export async function POST(request: NextRequest) {
 
     // Fire and forget: upload to Magnific via presigned PUT, run Space, poll, download
     runSpace(imagePath, selectedIds)
-      .then(async (runId) => {
-        updateGenerationStatus(genId, 'running', runId);
-        console.log(`[Generate] Workflow ${runId} started for ${genId}`);
+      .then(async (runIds) => {
+        updateGenerationStatus(genId, 'running', runIds.join(','));
+        console.log(`[Generate] ${runIds.length} workflows started for ${genId}:`, runIds);
 
-        // Poll until complete (max ~10 minutes for video generation)
-        let allDone = false;
+        // Poll each run ID until all are done (max ~10 minutes)
+        const pendingRuns = new Set(runIds);
+        const completedOutputs = new Set<string>();
         let attempts = 0;
         const maxAttempts = 120; // 10 min at 5s intervals
 
-        while (!allDone && attempts < maxAttempts) {
+        while (pendingRuns.size > 0 && attempts < maxAttempts) {
           await new Promise(r => setTimeout(r, 5000));
           attempts++;
-          try {
-            const status = await pollRunStatus(runId);
-            console.log(`[Generate] Poll ${attempts}:`, JSON.stringify(status).slice(0, 200));
-            allDone = status.allTerminal === true;
+          for (const runId of [...pendingRuns]) {
+            try {
+              const status = await pollRunStatus(runId);
+              console.log(`[Generate] Poll ${attempts} (${runId.slice(0,10)}):`, JSON.stringify(status).slice(0, 200));
+              
+              if (status.allTerminal) {
+                pendingRuns.delete(runId);
+              }
 
-            if (allDone || status.nodeRuns) {
               const nodeRuns = status.nodeRuns || [];
               for (const nr of nodeRuns) {
                 if (nr.status === 'completed' && nr.creationIdentifiers) {
                   for (const cid of nr.creationIdentifiers) {
                     // Match node to our output record
                     const output = outputs.find(o => o.node_id === nr.nodeId);
-                    if (output && cid) {
+                    if (output && cid && !completedOutputs.has(output.id)) {
                       try {
                         const creation = await getCreation(cid);
-                        // Extract URL from various possible response formats
                         const dlUrl = creation?.url || creation?.previewUrl 
                           || creation?.thumbnailUrl || creation?.originalUrl
                           || creation?.uri || creation?.blob;
                         updateOutputStatus(output.id, 'completed', cid, dlUrl);
+                        completedOutputs.add(output.id);
                         console.log(`[Generate] Output ${output.label}: ${cid} dl=${(dlUrl||'none').slice(0,60)}`);
                       } catch (e) {
                         console.error(`[Generate] Failed to get creation ${cid}:`, e);
@@ -94,12 +98,13 @@ export async function POST(request: NextRequest) {
                   }
                 }
               }
+            } catch (e) {
+              console.error(`[Generate] Poll error for ${runId}:`, e);
             }
-          } catch (e) {
-            console.error(`[Generate] Poll error:`, e);
           }
         }
 
+        const allDone = pendingRuns.size === 0;
         if (!allDone) {
           updateGenerationStatus(genId, 'timeout');
         } else {
